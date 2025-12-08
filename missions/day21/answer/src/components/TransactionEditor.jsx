@@ -5,7 +5,7 @@ import { useNavigate } from "react-router";
 
 const categories = ["🍚 식비", "💧 구독", "🏠 생활", "🏢 급여", "💰 금융"];
 
-export default function TransactionEditor({ type, initData }) {
+export default function TransactionEditor() {
   const { onCreateTransaction } = useContext(TransactionDispatchContext);
 
   const navigate = useNavigate();
@@ -16,15 +16,6 @@ export default function TransactionEditor({ type, initData }) {
     category: categories[0],
     date: new Date().toISOString().slice(0, 10),
   });
-
-  useEffect(() => {
-    if (type === "EDIT" && initData) {
-      setInput({
-        ...initData,
-        date: new Date(initData.date).toISOString().slice(0, 10),
-      });
-    }
-  }, [type, initData]);
 
   const onSubmit = () => {
     if (!input.name || !input.amount || !input.category || !input.date) {
