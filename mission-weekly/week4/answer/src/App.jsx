@@ -1,110 +1,75 @@
-import { Route, Routes } from "react-router";
+import { createContext, useMemo, useReducer } from "react";
 import "./App.css";
-import Home from "./pages/Home";
-import NewTransaction from "./pages/NewTransaction";
-import EditTransaction from "./pages/EditTransaction";
-import { createContext, useReducer, useRef } from "react";
+import ContactEditor from "./components/ContactEditor";
+import ContactList from "./components/ContactList";
+import { useRef } from "react";
+import { useCallback } from "react";
 
-function reducer(state, action) {
+const reducer = (state, action) => {
   switch (action.type) {
-    case "INIT":
-      // State 초기화
-      // action.data로 transaction State 값 교체
-      return action.data;
-
     case "CREATE":
-      // 새로운 아이템 추가,
-      // action.data에 담긴 새로운 요소를 transactions State에 추가
-      return [...state, action.data];
-
-    case "UPDATE":
-      // 기존 아이템 수정
-      // action.data.id번 아이디를 갖는 아이템을 action.data에 담긴 값으로 수정
-      return state.map((transaction) =>
-        transaction.id === action.data.id ? action.data : transaction
-      );
-
-    case "DELETE":
-      // 기존 아이템 삭제
-      // action.id번 아이디를 갖는 아이템을 transactions State에서 삭제
-      return state.filter((transaction) => transaction.id !== action.id);
-
+      return [action.data, ...state];
+    case "REMOVE":
+      return state.filter((it) => it.id !== action.targetId);
     default:
       return state;
   }
-}
+};
 
-const mockData = [
-  {
-    id: 0,
-    name: "마라탕 & 꿔바로우",
-    amount: 59000,
-    type: "expense",
-    category: "🍚 식비",
-    date: new Date().getTime() + 1,
-  },
-  {
-    id: 1,
-    name: "월세",
-    amount: 500000,
-    type: "expense",
-    category: "🏠 생활",
-    date: new Date().getTime() + 2,
-  },
-  {
-    id: 2,
-    name: "월급",
-    amount: 3500000,
-    type: "income",
-    category: "🏢 급여",
-    date: new Date().getTime() + 3,
-  },
-];
-
-export const TransactionStateContext = createContext();
-export const TransactionDispatchContext = createContext();
+/* 
+1. Context 객체 생성
+  - ContactStateContext : contacts State를 보관하고 공급함
+  - ContactDispatchContext : onCreateContact, onRemoveContact 등의 contacts State를 변경시키는 함수들을 보관하고 공급함
+*/
+export const ContactStateContext = createContext();
+export const ContactDispatchContext = createContext();
 
 function App() {
-  const [transactions, dispatch] = useReducer(reducer, mockData);
-  const idRef = useRef(3);
+  const [contacts, dispatch] = useReducer(reducer, []);
+  const idRef = useRef(0);
 
-  const onCreateTransaction = (name, amount, type, category, date) => {
-    // 새로운 아이템을 추가하는 함수
+  const onCreateContact = useCallback((name, contact) => {
     dispatch({
       type: "CREATE",
-      data: { id: idRef.current++, name, amount, type, category, date },
+      data: {
+        id: idRef.current++,
+        name,
+        contact,
+      },
     });
-  };
+  }, []);
 
-  const onUpdateTransaction = (id, name, amount, type, category, date) => {
-    // 기존 아이템을 수정하는 함수
+  const onRemoveContact = useCallback((targetId) => {
     dispatch({
-      type: "UPDATE",
-      data: { id, name, amount, type, category, date },
+      type: "REMOVE",
+      targetId,
     });
-  };
+  }, []);
 
-  const onDeleteTransaction = (id) => {
-    // 기존 아이템을 삭제하는 함수
-    dispatch({ type: "DELETE", id });
-  };
+  /* 2. useMemo를 사용해 onCreateContact와 onRemoveContact 함수를 묶은 객체가 다시 생성되지 않도록 설정함 */
+  const memoizedDispatches = useMemo(
+    () => ({ onCreateContact, onRemoveContact }),
+    []
+  );
 
   return (
-    <TransactionStateContext.Provider value={transactions}>
-      <TransactionDispatchContext.Provider
-        value={{
-          onCreateTransaction,
-          onUpdateTransaction,
-          onDeleteTransaction,
-        }}
-      >
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/new-transaction" element={<NewTransaction />} />
-          <Route path="/edit-transaction/:id" element={<EditTransaction />} />
-        </Routes>
-      </TransactionDispatchContext.Provider>
-    </TransactionStateContext.Provider>
+    <div className="App">
+      {/* 3. contact State 공급을 위해 Context.Provider 설정 */}
+      <ContactStateContext.Provider value={contacts}>
+        {/* 4. onCreateContact, onRemoveContact 공급을 위해 Context.Provider 설정 */}
+        <ContactDispatchContext.Provider value={memoizedDispatches}>
+          <h2>Contact List</h2>
+          <section>
+            {/* 5. 이제는 Context를 통해 데이터를 공급받을 것 이므로 Props는 제거 */}
+            <ContactEditor />
+          </section>
+          <section>
+            {/* 5. 이제는 Context를 통해 데이터를 공급받을 것 이므로 Props는 제거 */}
+            <ContactList />
+          </section>
+        </ContactDispatchContext.Provider>
+      </ContactStateContext.Provider>
+    </div>
   );
 }
 
